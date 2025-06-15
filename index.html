@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تعلم واختبر اللغة التركية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Blue/Green Accent -->
+    <!-- Application Structure Plan: Finalized multi-stage flow. 1) A mandatory Name Input screen to personalize the experience. 2) Welcome screen with flexible entry points. 3) Interactive Learning Pages with accordions and converters. 4) The quiz module. 5) Personalized results screen, image, and PDF report. -->
+    <!-- Visualization & Content Choices: Name Input (Goal: Personalize) -> HTML Form -> Captures user name for reports -> Justification: Increases user engagement and makes results traceable. All other choices from previous iterations are maintained for their proven effectiveness. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .page { display: none; }
+        .active-page { display: block; }
+        .correct { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
+        .incorrect { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        .disabled-options { pointer-events: none; opacity: 0.7; }
+        .chart-container { position: relative; width: 100%; max-width: 300px; height: 300px; margin: auto; }
+        .lesson-card { background-color: white; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); padding: 2rem; }
+        .rtl-table { direction: rtl; text-align: right; }
+        .toggle-content { display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e5e7eb; }
+        .toggle-title { cursor: pointer; }
+        .toggle-title.active + .toggle-content { display: block; }
+        .letter-btn { transition: all 0.2s; }
+        .letter-btn.active { transform: scale(1.1); background-color: #3b82f6; color: white; border-color: #2563eb; }
+    </style>
+</head>
+<body class="bg-amber-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div id="app-container" class="w-full max-w-4xl mx-auto">
+        
+        <!-- Name Input Screen -->
+        <div id="name-screen" class="page active-page text-center bg-white p-8 rounded-2xl shadow-lg">
+            <h1 class="text-3xl font-bold mb-4 text-blue-900">أهلاً بك</h1>
+            <p class="mb-6 text-lg">الرجاء إدخال اسمك الكامل للمتابعة.</p>
+            <div class="max-w-md mx-auto">
+                <input type="text" id="name-input" placeholder="اكتب اسمك هنا (4 أحرف على الأقل)" class="w-full p-3 border-2 border-gray-300 rounded-lg text-center text-xl focus:border-blue-500 focus:ring-blue-500">
+                <p id="name-error" class="text-red-500 text-sm mt-2 h-4"></p>
+                <button id="name-submit-button" class="mt-4 w-full bg-blue-400 text-white font-bold py-3 px-8 rounded-lg text-xl cursor-not-allowed" disabled>متابعة</button>
+            </div>
+        </div>
+        
+        <!-- Welcome/TOC Screen -->
+        <div id="welcome-screen" class="page text-center bg-white p-8 rounded-2xl shadow-lg">
+            <h1 id="welcome-message" class="text-3xl font-bold mb-4 text-blue-900"></h1>
+            <p class="mb-6 text-lg">اختر درساً للبدء، أو ابدأ التعلم بالترتيب، أو اذهب للاختبار مباشرة.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <button onclick="showPage('lesson-alphabet')" class="bg-white border-2 border-blue-500 text-blue-700 font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-50">1. الحروف التركية</button>
+                <button onclick="showPage('lesson-numbers')" class="bg-white border-2 border-blue-500 text-blue-700 font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-50">2. الأعداد</button>
+                <button onclick="showPage('lesson-vowels')" class="bg-white border-2 border-blue-500 text-blue-700 font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-50">3. قواعد الحروف الصوتية</button>
+                <button onclick="showPage('lesson-ordinals')" class="bg-white border-2 border-blue-500 text-blue-700 font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-50">4. الأعداد الترتيبية</button>
+                <button onclick="showPage('lesson-demonstratives')" class="bg-white border-2 border-blue-500 text-blue-700 font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-50">5. ضمائر الإشارة</button>
+            </div>
+             <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+                 <button onclick="showPage('lesson-alphabet')" class="w-full sm:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg text-xl hover:bg-blue-700">ابدأ التعلم</button>
+                 <button onclick="initQuiz()" class="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-xl hover:bg-green-700">اذهب للاختبار مباشرة</button>
+             </div>
+        </div>
+
+        <!-- Lesson Pages -->
+        <div id="lesson-alphabet" class="page lesson-card">
+            <h2 class="text-2xl font-bold mb-4 text-center">الدرس الأول: الحروف التركية</h2>
+            <p class="text-center mb-4">اضغط على أي حرف لعرض تفاصيل نطقه ومثال عليه.</p>
+            <div id="alphabet-buttons" class="flex flex-wrap justify-center gap-2 mb-4"></div>
+            <div id="alphabet-details" class="bg-blue-50 p-4 rounded-lg text-center min-h-[100px] flex items-center justify-center transition-all duration-300">
+                <p>اختر حرفاً من الأعلى.</p>
+            </div>
+            <div class="flex justify-between mt-8">
+                <button onclick="showPage('welcome-screen')" class="bg-gray-200 py-2 px-4 rounded">القائمة الرئيسية</button>
+                <button onclick="showPage('lesson-numbers')" class="bg-blue-600 text-white py-2 px-6 rounded">التالي</button>
+            </div>
+        </div>
+
+        <div id="lesson-numbers" class="page lesson-card">
+            <h2 class="text-2xl font-bold mb-4 text-center">الدرس الثاني: الأعداد</h2>
+            <div class="toggle-title p-3 bg-gray-100 rounded-lg" onclick="toggleContent(this)">
+                <h3 class="font-bold text-lg">قواعد الأعداد الأساسية اضغط هنا للتفاصيل</h3>
+            </div>
+            <div class="toggle-content">
+                <p>عند قراءة الأعداد المركبة، نبدأ بالرقم الكبير ثم الصغير. مثال: <span lang="tr" class="font-semibold">25 (yirmi beş)</span>، <span lang="tr" class="font-semibold">115 (yüz on beş)</span>.</p>
+            </div>
+            <hr class="my-6">
+            <h3 class="font-bold text-lg mb-4 text-center">محول الأعداد إلى كلمات تركية</h3>
+            <div class="max-w-md mx-auto">
+                <input type="number" id="number-input" placeholder="أدخل رقماً هنا..." class="w-full p-3 border-2 border-gray-300 rounded-lg text-center text-xl focus:border-blue-500 focus:ring-blue-500">
+                <div id="number-output" class="mt-4 p-4 bg-blue-50 rounded-lg text-center text-2xl font-bold text-blue-800 min-h-[70px]" lang="tr"></div>
+            </div>
+            <div class="flex justify-between mt-8">
+                <button onclick="showPage('lesson-alphabet')" class="bg-gray-200 py-2 px-4 rounded">السابق</button>
+                <button onclick="showPage('lesson-vowels')" class="bg-blue-600 text-white py-2 px-6 rounded">التالي</button>
+            </div>
+        </div>
+        
+        <div id="lesson-vowels" class="page lesson-card">
+            <h2 class="text-2xl font-bold mb-4 text-center">الدرس الثالث: قواعد الحروف الصوتية</h2>
+            <p class="text-center mb-4">تعتمد قواعد اللغة التركية بشكل كبير على التناغم الصوتي. اضغط على القواعد للتفاصيل.</p>
+            <div class="space-y-4">
+                <div class="toggle-title p-3 bg-gray-100 rounded-lg" onclick="toggleContent(this)">
+                    <h3 class="font-bold text-lg">قاعدة الثنائي الصوتي (İkili Sesli Uyumu)</h3>
+                </div>
+                <div class="toggle-content">
+                    <p>إذا كان آخر حرف صوتي في الكلمة ثقيلاً (a, ı, o, u)، فإن اللاحقة تأخذ الحرف الصوتي <span class="font-bold text-red-600">a</span>.</p>
+                    <p>إذا كان آخر حرف صوتي في الكلمة خفيفاً (e, i, ö, ü)، فإن اللاحقة تأخذ الحرف الصوتي <span class="font-bold text-red-600">e</span>.</p>
+                </div>
+                <div class="toggle-title p-3 bg-gray-100 rounded-lg" onclick="toggleContent(this)">
+                    <h3 class="font-bold text-lg">قاعدة الرباعي الصوتي (Dörtlü Sesli Uyumu)</h3>
+                </div>
+                <div class="toggle-content">
+                    <p>تعتمد اللاحقة على آخر حرف صوتي في الكلمة كالتالي:</p>
+                    <ul class="list-disc pr-5">
+                        <li>إذا كان (a, ı) ➔ تأخذ اللاحقة الحرف <span class="font-bold text-red-600">ı</span></li>
+                        <li>إذا كان (e, i) ➔ تأخذ اللاحقة الحرف <span class="font-bold text-red-600">i</span></li>
+                        <li>إذا كان (o, u) ➔ تأخذ اللاحقة الحرف <span class="font-bold text-red-600">u</span></li>
+                        <li>إذا كان (ö, ü) ➔ تأخذ اللاحقة الحرف <span class="font-bold text-red-600">ü</span></li>
+                    </ul>
+                </div>
+            </div>
+             <div class="flex justify-between mt-8">
+                <button onclick="showPage('lesson-numbers')" class="bg-gray-200 py-2 px-4 rounded">السابق</button>
+                <button onclick="showPage('lesson-ordinals')" class="bg-blue-600 text-white py-2 px-6 rounded">التالي</button>
+            </div>
+        </div>
+        
+        <div id="lesson-ordinals" class="page lesson-card">
+            <h2 class="text-2xl font-bold mb-4 text-center">الدرس الرابع: الأعداد الترتيبية</h2>
+            <div class="toggle-title p-3 bg-gray-100 rounded-lg" onclick="toggleContent(this)">
+                 <h3 class="font-bold text-lg">قاعدة الأعداد الترتيبية (SIRA SAYILARI)</h3>
+            </div>
+             <div class="toggle-content">
+                 <p>لتحويل العدد إلى عدد ترتيبي، نضيف اللاحقة <span lang="tr" class="font-mono">-(ı/i/u/ü)ncı</span> حسب قاعدة التناغم الصوتي الرباعي.</p>
+                 <ul class="list-disc pr-5 mb-4">
+                     <li>bir ➔ bir<span class="text-red-600">inci</span> (الأول)</li>
+                     <li>iki ➔ iki<span class="text-red-600">nci</span> (الثاني) - *نحذف الحرف الصوتي من اللاحقة إذا انتهى الرقم بحرف صوتي*</li>
+                     <li>üç ➔ üç<span class="text-red-600">üncü</span> (الثالث)</li>
+                 </ul>
+                  <p>أداة السؤال للأعداد الترتيبية هي <span lang="tr" class="font-mono font-bold">Kaçıncı?</span> (في أي ترتيب؟).</p>
+             </div>
+             <hr class="my-6">
+            <h3 class="font-bold text-lg mb-4 text-center">محول الأعداد إلى أعداد ترتيبية</h3>
+            <div class="max-w-md mx-auto">
+                <input type="number" id="ordinal-input" placeholder="أدخل رقماً هنا..." class="w-full p-3 border-2 border-gray-300 rounded-lg text-center text-xl focus:border-blue-500 focus:ring-blue-500">
+                <div id="ordinal-output" class="mt-4 p-4 bg-blue-50 rounded-lg text-center text-2xl font-bold text-blue-800 min-h-[70px]" lang="tr"></div>
+            </div>
+             <div class="flex justify-between mt-8">
+                <button onclick="showPage('lesson-vowels')" class="bg-gray-200 py-2 px-4 rounded">السابق</button>
+                <button onclick="showPage('lesson-demonstratives')" class="bg-blue-600 text-white py-2 px-6 rounded">التالي</button>
+            </div>
+        </div>
+
+        <div id="lesson-demonstratives" class="page lesson-card">
+            <h2 class="text-2xl font-bold mb-4 text-center">الدرس الخامس: ضمائر الإشارة</h2>
+             <div class="toggle-title p-3 bg-gray-100 rounded-lg" onclick="toggleContent(this)">
+                 <h3 class="font-bold text-lg">ضمائر الإشارة للأشياء والأشخاص (İŞARET ZAMİRLERİ)</h3>
+            </div>
+             <div class="toggle-content">
+                 <table class="w-full text-center rtl-table border">
+                    <thead class="bg-blue-100"><tr><th>الضمير</th><th>المعنى</th><th>الاستخدام</th></tr></thead>
+                    <tbody>
+                        <tr><td>Bu</td><td>هذا/هذه</td><td>للقريب الملموس</td></tr>
+                        <tr><td>Şu</td><td>ذاك/تلك</td><td>للبعيد المشاهد</td></tr>
+                        <tr><td>O</td><td>ذاك/تلك</td><td>للبعيد جداً أو غير المشاهد</td></tr>
+                    </tbody>
+                </table>
+                 <p class="mt-2">أدوات السؤال: <span class="font-semibold">Kim?</span> (من؟ للعاقل), <span class="font-semibold">Ne?</span> (ماذا؟ لغير العاقل)</p>
+             </div>
+             <div class="toggle-title p-3 bg-gray-100 rounded-lg mt-4" onclick="toggleContent(this)">
+                 <h3 class="font-bold text-lg">ضمائر الإشارة للأماكن</h3>
+            </div>
+             <div class="toggle-content">
+                 <table class="w-full text-center rtl-table border">
+                     <thead class="bg-blue-100"><tr><th>الضمير</th><th>المعنى</th><th>الاستخدام</th></tr></thead>
+                     <tbody>
+                         <tr><td>Burası</td><td>هذا المكان</td><td>للمكان القريب</td></tr>
+                         <tr><td>Şurası</td><td>ذاك المكان</td><td>للمكان البعيد المشاهد</td></tr>
+                         <tr><td>Orası</td><td>ذلك المكان</td><td>للمكان البعيد جداً</td></tr>
+                     </tbody>
+                 </table>
+                  <p class="mt-2">أداة السؤال: <span class="font-semibold">Neresi?</span> (ما هذا المكان؟)</p>
+             </div>
+             <div class="text-center mt-8">
+                <p class="text-lg font-semibold">لقد أكملت جميع الدروس!</p>
+                <button onclick="initQuiz()" class="mt-4 bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-xl hover:bg-green-700">ابدأ الاختبار الآن</button>
+            </div>
+             <div class="flex justify-between mt-8">
+                <button onclick="showPage('lesson-ordinals')" class="bg-gray-200 py-2 px-4 rounded">السابق</button>
+                <button onclick="showPage('welcome-screen')" class="bg-blue-600 text-white py-2 px-6 rounded">العودة للقائمة</button>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="page bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+             <div id="header" class="flex justify-between items-center mb-4">
+                <div id="progress-text" class="text-lg font-bold text-blue-800"></div>
+                <div id="timer-text" class="text-lg font-bold text-red-600 bg-red-100 px-4 py-1 rounded-full"></div>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div id="question-container" class="mb-6">
+                <h2 id="question-text" class="text-2xl font-bold text-center mb-6" lang="tr"></h2>
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+            <div class="flex justify-center mt-6">
+                <button id="next-button" class="bg-gray-700 text-white font-bold py-3 px-12 rounded-lg text-xl hover:bg-gray-800">التالي</button>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="page text-center bg-white rounded-2xl shadow-lg">
+             <div id="results-summary" class="p-8">
+                <h1 class="text-3xl font-bold mb-2 text-blue-900">النتيجة النهائية</h1>
+                <h2 id="result-user-name" class="text-2xl font-semibold mb-4 text-gray-700"></h2>
+                <p id="final-score-text" class="text-xl mb-2"></p>
+                <p id="time-spent-text" class="text-lg text-gray-600 mb-4"></p>
+                <div class="chart-container mb-6">
+                    <canvas id="results-chart"></canvas>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button id="save-result-button" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-green-700">حفظ النتيجة كصورة</button>
+                    <button id="view-details-button" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-indigo-700">عرض التفاصيل</button>
+                    <button id="restart-button" class="bg-gray-400 text-white font-bold py-3 px-6 rounded-lg text-lg cursor-not-allowed" disabled>إعادة الدورة</button>
+                </div>
+                <p id="save-notice" class="text-sm text-red-500 mt-4 hidden">يجب حفظ النتيجة أولاً لتتمكن من الإعادة.</p>
+            </div>
+            <div id="detailed-results" class="hidden p-8 border-t-2 border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-blue-900">تقرير الإجابات التفصيلي</h2>
+                <div class="overflow-x-auto">
+                    <table id="detailed-results-table" class="w-full text-sm">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr><th>السؤال</th><th>إجابتك</th><th>الإجابة الصحيحة</th><th>الحالة</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <button id="save-pdf-button" class="mt-6 bg-red-600 text-white font-bold py-3 px-8 rounded-lg text-lg hover:bg-red-700">حفظ التفاصيل PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global State ---
+        let userName = '';
+
+        // --- Static Data ---
+        const alphabetDetailsData = {
+            'A': { example: 'Anne (أم)', pronunciation: 'يلفظ "أ" مفخمة في أول الكلمة، وفتحة طويلة في وسطها.' }, 'B': { example: 'Baba (أب)', pronunciation: 'يلفظ مثل حرف الباء في العربية.' },
+            'C': { example: 'Cam (زجاج)', pronunciation: 'يلفظ مثل حرف الجيم في العربية.' }, 'Ç': { example: 'Çocuk (طفل)', pronunciation: 'يلفظ "تش" مثل كلمة "Chair" بالإنجليزية.' },
+            'D': { example: 'Defter (دفتر)', pronunciation: 'يلفظ مثل حرف الدال في العربية.' }, 'E': { example: 'Elma (تفاح)', pronunciation: 'يلفظ "إي" في أول الكلمة، وفتحة خفيفة في وسطها.' },
+            'F': { example: 'Fıstık (فستق)', pronunciation: 'يلفظ مثل حرف الفاء في العربية.' }, 'G': { example: 'Göz (عين)', pronunciation: 'يلفظ مثل الجيم المصرية.' },
+            'Ğ': { example: 'Yağmur (مطر)', pronunciation: 'حرف صامت، يمد الحرف الصوتي الذي قبله.' }, 'H': { example: 'Harf (حرف)', pronunciation: 'يلفظ مثل حرف الهاء في العربية.' },
+            'I': { example: 'Işık (ضوء)', pronunciation: 'صوت بين الكسرة والفتحة، صوت ثقيل.' }, 'İ': { example: 'İnsan (إنسان)', pronunciation: 'يلفظ مثل الياء أو الكسرة الخفيفة.' },
+            'J': { example: 'Jilet (شفرة)', pronunciation: 'يلفظ مثل حرف الجيم مع تعطيش.' }, 'K': { example: 'Kalem (قلم)', pronunciation: 'يلفظ مثل حرف الكاف في العربية.' },
+            'L': { example: 'Limon (ليمون)', pronunciation: 'يلفظ مثل حرف اللام في العربية.' }, 'M': { example: 'Mum (شمعة)', pronunciation: 'يلفظ مثل حرف الميم في العربية.' },
+            'N': { example: 'Nar (رمان)', pronunciation: 'يلفظ مثل حرف النون في العربية.' }, 'O': { example: 'On (عشرة)', pronunciation: 'يلفظ "أو" مفخمة.' },
+            'Ö': { example: 'Öğrenci (طالب)', pronunciation: 'يلفظ "أو" مرققة، صوت بين O و E.' }, 'P': { example: 'Para (نقود)', pronunciation: 'يلفظ مثل حرف الباء مع دفعة هواء.' },
+            'R': { example: 'Resim (صورة)', pronunciation: 'يلفظ مثل حرف الراء في العربية.' }, 'S': { example: 'Saat (ساعة)', pronunciation: 'يلفظ مثل حرف السين في العربية.' },
+            'Ş': { example: 'Şişe (زجاجة)', pronunciation: 'يلفظ "ش" مثل حرف الشين في العربية.' }, 'T': { example: 'Telefon (هاتف)', pronunciation: 'يلفظ مثل حرف التاء في العربية.' },
+            'U': { example: 'Uzun (طويل)', pronunciation: 'يلفظ مثل الضمة المفخمة (واو).' }, 'Ü': { example: 'Üzüm (عنب)', pronunciation: 'يلفظ مثل الضمة المرققة.' },
+            'V': { example: 'Vazo (مزهرية)', pronunciation: 'يلفظ مثل حرف V في الإنجليزية.' }, 'Y': { example: 'Yemek (طعام)', pronunciation: 'يلفظ مثل حرف الياء في العربية.' },
+            'Z': { example: 'Zil (جرس)', pronunciation: 'يلفظ مثل حرف الزاي في العربية.' },
+        };
+        const quizData = [
+            { question: "Türkçe'de toplam kaç harf vardır?", options: ["28", "29", "30", "21"], answer: 1 },
+            { question: "Aşağıdaki harflerden hangisi 'kalın ünlü' grubuna aittir?", options: ["e", "i", "ö", "o"], answer: 3 },
+            { question: "Aşağıdaki harflerden hangisi 'ince ünlü' grubuna aittir?", options: ["o", "u", "ı", "ü"], answer: 3 },
+            { question: "'85' sayısının Türkçe yazılışı aşağıdakilerden hangisidir?", options: ["Seksen beş", "Sekiz beş", "Beş seksen", "Seksen sekiz"], answer: 0 },
+            { question: "'Doksan yedi' sayısının rakamla doğru yazılışı hangisidir?", options: ["97", "79", "90", "19"], answer: 0 },
+            { question: "'7' rakamının sıra sayısı olarak doğru yazılışı hangisidir?", options: ["Yedinici", "Yedinci", "Yetinci", "Yedici"], answer: 1 },
+            { question: "'On .....' katta oturuyorum. Cümlesindeki boşluğa hangi ek gelmelidir?", options: ["-uncu", "-inci", "-ıncı", "-ncu"], answer: 0 },
+            { question: "Elimizle dokunabildiğimiz, çok yakınımızdaki bir nesneyi işaret etmek için hangi zamir kullanılır?", options: ["Şu", "O", "Orası", "Bu"], answer: 3 },
+            { question: "Bizden uzakta olan ama gözümüzle görebildiğimiz bir nesne için hangi zamir kullanılır?", options: ["Bu", "Şu", "O", "Burası"], answer: 1 },
+            { question: "Bir nesnenin ne olduğunu sormak için hangi soru kelimesi kullanılır?", options: ["Kim?", "Ne?", "Nerede?", "Neresi?"], answer: 1 },
+            { question: "'- O kim? - O, .....' diyaloğunda boşluğa hangisi gelebilir?", options: ["öğretmen", "kitap", "ev", "araba"], answer: 0 },
+            { question: "'Kalem ....., masanın üzerinde.' (Konuşana yakın bir yer). Boşluğa hangisi gelmelidir?", options: ["burada", "şurada", "orada", "nerede"], answer: 0 },
+            { question: "Bir yerin adını veya ne olduğunu sormak için kullanılan '..... neresi?' sorusuna verilebilecek en uygun cevap hangisidir?", options: ["Kitap", "Burası okul", "Ali", "Bu bir araba"], answer: 1 },
+            { question: "'125' sayısının doğru yazılışı hangisidir?", options: ["Yüz yirmi beş", "Bir yirmi beş", "Yüz yirmi", "Yirmi beş yüz"], answer: 0 },
+            { question: "Türk alfabesinde toplam kaç tane sesli (ünlü) harf bulunur?", options: ["21", "8", "29", "4"], answer: 1 },
+            { question: "'4' rakamının sıra sayısı olarak doğru yazılışı hangisidir?", options: ["Dördüncü", "Dörtüncü", "Dörtinci", "Dördünci"], answer: 0 },
+            { question: "Gözle göremediğimiz veya çok uzakta olan bir nesne için hangi işaret zamiri kullanılır?", options: ["Bu", "O", "Şu", "Bura"], answer: 1 },
+            { question: "Bir kişinin kim olduğunu sormak için hangi soru kelimesi kullanılır?", options: ["Ne?", "Nerede?", "Neresi?", "Kim?"], answer: 3 },
+            { question: "'Altmış' kelimesi hangi sayıyı ifade eder?", options: ["16", "60", "70", "6"], answer: 1 },
+            { question: "'Otuz iki' sayısının rakamla yazılışı nedir?", options: ["23", "32", "302", "13"], answer: 1 },
+            { question: "'Öğrenci' kelimesindeki sesli harflerin hepsi hangi gruba aittir?", options: ["Kalın ünlüler", "İnce ünlüler", "Hem kalın hem ince ünlüler", "Ünlü harf yoktur"], answer: 1 },
+            { question: "'İkinci' kelimesi hangi sayının sıra halidir?", options: ["1", "2", "3", "4"], answer: 1 },
+            { question: "'....... katta oturuyorsun?' sorusundaki boşluğa gelebilecek en doğru soru kelimesi hangisidir?", options: ["Kaçıncı", "Ne", "Kaç", "Kim"], answer: 0 },
+            { question: "Konuştuğumuz kişiye göre uzakta olan bir yeri belirtmek için hangisi kullanılır?", options: ["Burada", "Şurada", "Orada", "Nerede"], answer: 1 },
+            { question: "'Yüz' kelimesi hangi sayıyı ifade eder?", options: ["10", "1000", "100", "1"], answer: 2 },
+            { question: "'Ğ' harfi için aşağıdakilerden hangisi genellikle doğrudur?", options: ["Kelimenin başında bulunabilir.", "Kendinden önceki kalın sesli harfi uzatır.", "Her zaman 'y' sesi verir.", "Sessiz bir harftir, okunmaz."], answer: 1 },
+            { question: "'Bin dokuz yüz doksan üç' sayısının rakamla yazılışı hangisidir?", options: ["1939", "1993", "1999", "9319"], answer: 1 },
+            { question: "'1' rakamının sıra sayısı hali hangisidir?", options: ["Birinci", "Birnci", "Birinciğ", "Bireci"], answer: 0 },
+            { question: "'- Burası neresi? - ...... postane.' diyaloğunda boşluğa hangisi gelmelidir?", options: ["Bu", "Orada", "Bura", "Burası"], answer: 3 },
+            { question: "'Elli' + 'Kırk' işleminin sonucu kelime olarak hangisidir?", options: ["Doksan", "Seksen", "Yüz", "Yetmiş"], answer: 0 },
+            { question: "'dokuz' sayısının sıra sayısı hali hangisidir?", options: ["dokuzuncu", "dokuzinci", "dokuzncu", "dokuzuncü"], answer: 0 },
+            { question: "'....... tane elma var?' cümlesindeki boşluğa hangi soru kelimesi gelmelidir?", options: ["Kaçıncı", "Kaç", "Ne", "Nerede"], answer: 1 },
+            { question: "'Işık' kelimesi hangi harf ile başlar?", options: ["Y", "L", "İ", "I"], answer: 3 },
+            { question: "'İki bin yirmi üç' sayısının rakamla yazılışı hangisidir?", options: ["2023", "2230", "2032", "2320"], answer: 0 },
+            { question: "'...... araba.' (Konuşan kişiden çok uzakta olan bir araba için). Boşluğa ne gelmelidir?", options: ["Bu", "O", "Şu", "Bura"], answer: 1 },
+        ];
+        
+        // --- Page Navigation and Interaction Logic ---
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active-page'));
+            document.getElementById(pageId).classList.add('active-page');
+        }
+
+        function toggleContent(element) {
+            element.classList.toggle('active');
+        }
+
+        // --- Name Input Logic ---
+        const nameInputEl = document.getElementById('name-input');
+        const nameSubmitBtn = document.getElementById('name-submit-button');
+        const nameErrorEl = document.getElementById('name-error');
+        
+        nameInputEl.addEventListener('input', () => {
+            const name = nameInputEl.value.trim();
+            const nameRegex = /^[a-zA-Z\u00C0-\u017F\u0600-\u06FF\s]{4,}$/;
+            if (nameRegex.test(name)) {
+                nameErrorEl.textContent = '';
+                nameSubmitBtn.disabled = false;
+                nameSubmitBtn.classList.remove('bg-blue-400', 'cursor-not-allowed');
+                nameSubmitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            } else {
+                nameErrorEl.textContent = 'الاسم يجب أن يتكون من 4 أحرف على الأقل.';
+                nameSubmitBtn.disabled = true;
+                nameSubmitBtn.classList.add('bg-blue-400', 'cursor-not-allowed');
+                nameSubmitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            }
+        });
+
+        nameSubmitBtn.addEventListener('click', () => {
+            userName = nameInputEl.value.trim();
+            document.getElementById('welcome-message').innerText = `أهلاً بك، ${userName}!`;
+            showPage('welcome-screen');
+        });
+
+        // --- Alphabet Page Logic ---
+        const alphabetButtonsContainer = document.getElementById('alphabet-buttons');
+        const alphabetDetailsContainer = document.getElementById('alphabet-details');
+        Object.keys(alphabetDetailsData).forEach(letter => {
+            const button = document.createElement('button');
+            button.innerText = letter;
+            button.lang = 'tr';
+            button.classList.add('letter-btn', 'w-12', 'h-12', 'text-xl', 'font-bold', 'border-2', 'border-gray-300', 'rounded-lg');
+            button.onclick = () => showAlphabetDetail(letter, button);
+            alphabetButtonsContainer.appendChild(button);
+        });
+
+        function showAlphabetDetail(letter, btn) {
+            document.querySelectorAll('#alphabet-buttons .letter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const details = alphabetDetailsData[letter];
+            alphabetDetailsContainer.innerHTML = `
+                <div class="text-right">
+                    <p class="text-xl font-bold mb-2" lang="tr">${details.example}<\/p>
+                    <p>${details.pronunciation}<\/p>
+                <\/div>
+            `;
+        }
+        
+        // --- Number Converter Logic ---
+        const numberInput = document.getElementById('number-input');
+        const numberOutput = document.getElementById('number-output');
+        numberInput.oninput = () => {
+            const num = parseInt(numberInput.value);
+            numberOutput.innerText = isNaN(num) ? '' : numberToTurkishWords(num);
+        };
+
+        function numberToTurkishWords(num) {
+            if (num === 0) return 'sıfır';
+            if (isNaN(num) || num > 999999999) return 'الرقم غير صالح';
+
+            const ones = ['', 'bir', 'iki', 'üç', 'dört', 'beş', 'altı', 'yedi', 'sekiz', 'dokuz'];
+            const tens = ['', 'on', 'yirmi', 'otuz', 'kırk', 'elli', 'altmış', 'yetmiş', 'seksen', 'doksan'];
+            let result = '';
+            
+            function process(n) {
+                if (n === 0) return '';
+                let str = '';
+                if (n >= 100) {
+                    let hundred = Math.floor(n / 100);
+                    str += (hundred > 1 ? ones[hundred] : '') + ' yüz ';
+                }
+                n %= 100;
+                if (n >= 10) { str += tens[Math.floor(n / 10)] + ' '; }
+                n %= 10;
+                if (n > 0) { str += ones[n] + ' '; }
+                return str;
+            }
+
+            const million = Math.floor(num / 1000000);
+            if (million > 0) { result += process(million) + 'milyon '; num %= 1000000; }
+            const thousand = Math.floor(num / 1000);
+            if (thousand > 0) { result += (thousand === 1 ? '' : process(thousand)) + 'bin '; num %= 1000; }
+            if (num > 0) { result += process(num); }
+
+            return result.trim();
+        }
+        
+        // --- Ordinal Number Converter Logic ---
+        const ordinalInput = document.getElementById('ordinal-input');
+        const ordinalOutput = document.getElementById('ordinal-output');
+        ordinalInput.oninput = () => {
+            const num = parseInt(ordinalInput.value);
+            ordinalOutput.innerText = isNaN(num) ? '' : numberToOrdinal(num);
+        };
+        
+        function numberToOrdinal(num) {
+             if (isNaN(num) || num < 1) return '';
+            
+            const word = numberToTurkishWords(num);
+            const vowels = 'aeıioöuü';
+            let lastVowel = '';
+            for (let i = word.length - 1; i >= 0; i--) {
+                if (vowels.includes(word[i])) {
+                    lastVowel = word[i];
+                    break;
+                }
+            }
+
+            let suffix;
+            if (['a', 'ı'].includes(lastVowel)) suffix = 'ıncı';
+            else if (['e', 'i'].includes(lastVowel)) suffix = 'inci';
+            else if (['o', 'u'].includes(lastVowel)) suffix = 'uncu';
+            else if (['ö', 'ü'].includes(lastVowel)) suffix = 'üncü';
+            else return word; 
+
+            if (vowels.includes(word.slice(-1))) {
+                 return word.slice(0, -1) + suffix;
+            } else {
+                let baseWord = word;
+                if (word === 'dört') { 
+                     baseWord = 'dörd';
+                }
+                return baseWord + suffix;
+            }
+        }
+
+        // --- Quiz Logic ---
+        let currentQuestionIndex, score, quizTimer, startTime, userAnswers;
+        const totalTime = quizData.length * 60; 
+        
+        const nextButtonEl = document.getElementById('next-button');
+        const restartButtonEl = document.getElementById('restart-button');
+        const saveResultButtonEl = document.getElementById('save-result-button');
+        const viewDetailsButtonEl = document.getElementById('view-details-button');
+        const savePdfButtonEl = document.getElementById('save-pdf-button');
+        
+        function initQuiz() {
+            showPage('quiz-screen');
+            currentQuestionIndex = 0; score = 0; userAnswers = []; startTime = new Date();
+            document.documentElement.requestFullscreen().catch(console.log);
+            window.addEventListener('beforeunload', beforeUnloadHandler);
+            startTimer(totalTime);
+            showQuizQuestion();
+        }
+
+        function showQuizQuestion() {
+            resetQuizState();
+            const currentQuestion = quizData[currentQuestionIndex];
+            document.getElementById('progress-text').innerText = `السؤال ${currentQuestionIndex + 1} من ${quizData.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentQuestionIndex + 1) / quizData.length) * 100}%`;
+            document.getElementById('question-text').innerText = currentQuestion.question;
+            const optionsContainer = document.getElementById('options-container');
+            currentQuestion.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.innerText = option;
+                button.lang = 'tr';
+                button.classList.add('w-full', 'p-4', 'text-lg', 'border-2', 'border-gray-300', 'rounded-lg', 'transition-colors', 'duration-300', 'hover:bg-amber-100');
+                button.addEventListener('click', () => selectAnswer(index));
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function resetQuizState() {
+            nextButtonEl.innerText = "تجاوز السؤال";
+            const optionsContainer = document.getElementById('options-container');
+            while (optionsContainer.firstChild) { optionsContainer.removeChild(optionsContainer.firstChild); }
+            optionsContainer.classList.remove('disabled-options');
+        }
+
+        function selectAnswer(selectedIndex, skipped = false) {
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.classList.add('disabled-options');
+            const currentQuestion = quizData[currentQuestionIndex];
+            const isCorrect = !skipped && selectedIndex === currentQuestion.answer;
+            if (isCorrect) score++;
+            userAnswers.push({ question: currentQuestion.question, options: currentQuestion.options, userAnswerIndex: selectedIndex, correctAnswerIndex: currentQuestion.answer, isCorrect: isCorrect, skipped: skipped });
+            if (!skipped) {
+                Array.from(optionsContainer.children).forEach((button, index) => {
+                    if (index === currentQuestion.answer) button.classList.add('correct');
+                    else if (index === selectedIndex) button.classList.add('incorrect');
+                });
+            }
+            nextButtonEl.innerText = "السؤال التالي";
+        }
+        
+        function handleNextQuestion() {
+            if (!document.getElementById('options-container').classList.contains('disabled-options')) {
+                selectAnswer(null, true);
+            }
+            currentQuestionIndex++;
+            if (currentQuestionIndex < quizData.length) { showQuizQuestion(); } 
+            else { endQuiz(); }
+        }
+
+        function startTimer(duration) {
+            let timeLeft = duration;
+            const timerTextEl = document.getElementById('timer-text');
+            quizTimer = setInterval(() => {
+                timeLeft--;
+                let minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                timerTextEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                if (timeLeft <= 0) endQuiz();
+            }, 1000);
+        }
+
+        function endQuiz() {
+            clearInterval(quizTimer);
+            window.removeEventListener('beforeunload', beforeUnloadHandler);
+            if(document.fullscreenElement) document.exitFullscreen();
+            const timeSpent = Math.round((new Date() - startTime) / 1000);
+            const minutes = Math.floor(timeSpent / 60);
+            const seconds = timeSpent % 60;
+            const avgTime = (timeSpent / quizData.length).toFixed(1);
+            showPage('results-screen');
+            document.getElementById('result-user-name').innerText = `نتيجة الطالب: ${userName}`;
+            const percentage = Math.round((score / quizData.length) * 100);
+            document.getElementById('final-score-text').innerText = `النتيجة: ${score} من ${quizData.length} (${percentage}%)`;
+            document.getElementById('time-spent-text').innerText = `الوقت: ${minutes}د و ${seconds}ث. (متوسط ${avgTime} ث/سؤال)`;
+            let chart = Chart.getChart("results-chart");
+            if(chart) chart.destroy();
+            new Chart(document.getElementById('results-chart').getContext('2d'), {
+                type: 'doughnut', data: { labels: ['صحيحة', 'خاطئة'], datasets: [{ data: [score, quizData.length - score], backgroundColor: ['#4ade80','#f87171'], borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } }
+            });
+            document.getElementById('save-notice').classList.remove('hidden');
+        }
+        
+        function beforeUnloadHandler(e) {
+            e.preventDefault();
+            e.returnValue = 'هل أنت متأكد؟ ستفقد تقدمك في الاختبار.';
+        }
+
+        function showDetailedResults() {
+            const detailedResultsEl = document.getElementById('detailed-results');
+            detailedResultsEl.classList.toggle('hidden');
+            viewDetailsButtonEl.innerText = detailedResultsEl.classList.contains('hidden') ? 'عرض التفاصيل' : 'إخفاء التفاصيل';
+            const tableBody = document.querySelector("#detailed-results-table tbody");
+            tableBody.innerHTML = ''; 
+            userAnswers.forEach((ans, index) => {
+                let status, statusColor, userAnswerText;
+                if (ans.skipped) { status = "تم التجاوز"; statusColor = "text-yellow-600"; userAnswerText = "-"; } 
+                else if (ans.isCorrect) { status = "صحيحة"; statusColor = "text-green-600"; userAnswerText = ans.options[ans.userAnswerIndex]; } 
+                else { status = "خاطئة"; statusColor = "text-red-600"; userAnswerText = ans.options[ans.userAnswerIndex]; }
+                const row = `<tr class="border-b"><td class="p-2">${index + 1}. ${ans.question}<\/td><td class="p-2">${userAnswerText}<\/td><td class="p-2">${ans.options[ans.correctAnswerIndex]}<\/td><td class="p-2 font-bold ${statusColor}">${status}<\/td><\/tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+        
+        function saveResultsAsImage() {
+            html2canvas(document.getElementById('results-summary')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `result-${userName.replace(/\s/g, '_')}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                restartButtonEl.disabled = false;
+                restartButtonEl.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                restartButtonEl.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                document.getElementById('save-notice').classList.add('hidden');
+            });
+        }
+        
+        function saveDetailsAsPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFont('Helvetica', 'bold');
+            doc.text("Test Report", 105, 15, { align: 'center' });
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(12);
+            doc.text(`Student: ${userName}`, 14, 22);
+
+            doc.autoTable({
+                html: '#detailed-results-table', startY: 30, theme: 'grid',
+                headStyles: { fontStyle: 'bold', halign: 'center' },
+            });
+            doc.save(`report-${userName.replace(/\s/g, '_')}.pdf`);
+        }
+
+        function restartApp() {
+            showPage('name-screen');
+            nameInputEl.value = '';
+            nameSubmitBtn.disabled = true;
+            nameSubmitBtn.classList.add('bg-blue-400', 'cursor-not-allowed');
+            nameSubmitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            document.getElementById('detailed-results').classList.add('hidden');
+            restartButtonEl.disabled = true;
+            restartButtonEl.classList.add('bg-gray-400', 'cursor-not-allowed');
+            restartButtonEl.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        }
+
+        // --- Event Listeners ---
+        nextButtonEl.addEventListener('click', handleNextQuestion);
+        restartButtonEl.addEventListener('click', restartApp);
+        saveResultButtonEl.addEventListener('click', saveResultsAsImage);
+        viewDetailsButtonEl.addEventListener('click', showDetailedResults);
+        savePdfButtonEl.addEventListener('click', saveDetailsAsPDF);
+    </script>
+</body>
+</html>
